@@ -48,6 +48,7 @@ This report documents the refactor performed to make the codebase suitable for t
 
 - Data leakage checks
   - DAPT corpus uses only unlabeled text; fine-tuning uses labeled dataset with separate splits. Both processes are file-separated.
+  - Datasets & Methodology: DAPT uses the LazadaQA corpus (unlabeled) to adapt the DistilBERT encoder to Taglish/Lazada text, while supervised fine-tuning and evaluation are performed on the labeled **FiReCS** dataset (default `ccosme/FiReCS`). No synthetic data generation or augmentation is performed.
 
 ---
 

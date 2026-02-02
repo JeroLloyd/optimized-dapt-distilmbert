@@ -22,9 +22,9 @@ flow_path = os.path.join(OUT_DIR, 'pipeline_flow.png')
 # Build graph using graphviz.Digraph object
 dot = Digraph('pipeline', format='png')
 dot.attr(rankdir='LR')
-dot.node('A', 'LazadaQA\n(Unlabeled)')
+dot.node('A', 'LazadaQA\n(Unlabeled - DAPT)')
 dot.node('B', 'DAPT\n(MLM)')
-dot.node('C', 'FiReCS\n(Labeled)')
+dot.node('C', 'FiReCS\n(Labeled - Fine-tune)')
 dot.node('D', 'Fine-tune\n(Supervised)')
 dot.node('E', 'Optimize & Benchmark')
 
@@ -45,9 +45,9 @@ except Exception as e:
         import matplotlib.pyplot as plt
 
         G = nx.DiGraph()
-        G.add_node('A', label='LazadaQA\n(Unlabeled)')
+        G.add_node('A', label='LazadaQA\n(Unlabeled - DAPT)')
         G.add_node('B', label='DAPT\n(MLM)')
-        G.add_node('C', label='FiReCS\n(Labeled)')
+        G.add_node('C', label='FiReCS\n(Labeled - Fine-tune)')
         G.add_node('D', label='Fine-tune\n(Supervised)')
         G.add_node('E', label='Optimize & Benchmark')
 

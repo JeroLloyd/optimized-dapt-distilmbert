@@ -16,6 +16,7 @@ from sklearn.metrics import f1_score, accuracy_score
 from nlp_thesis.utils import get_logger, set_seed, ensure_dir
 
 # --- DEFAULT CONFIG ---
+# DEFAULT_DATASET_NAME is a LABELED dataset used for supervised fine-tuning and evaluation
 DEFAULT_DATASET_NAME = "ccosme/FiReCS"
 DEFAULT_OUTPUT_DIR = "./models"
 DEFAULT_SEED = 42
@@ -166,7 +167,7 @@ def run_training_phase(model_key, model_source, dataset_splits, tokenizer_name, 
 
 def main():
     parser = argparse.ArgumentParser(description='Run fine-tuning phases for models A/B/C')
-    parser.add_argument('--dataset', default=DEFAULT_DATASET_NAME)
+    parser.add_argument('--dataset', default=DEFAULT_DATASET_NAME, help='Labeled dataset name or local CSV for supervised fine-tuning (default: ccosme/FiReCS)')
     parser.add_argument('--seed', type=int, default=DEFAULT_SEED)
     parser.add_argument('--batch-size', type=int, default=DEFAULT_BATCH_SIZE)
     parser.add_argument('--epochs', type=int, default=DEFAULT_EPOCHS)

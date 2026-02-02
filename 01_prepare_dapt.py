@@ -8,12 +8,13 @@ import os
 from nlp_thesis.utils import get_logger, set_seed, ensure_dir
 
 # --- DEFAULT CONFIGURATION ---
+# NOTE: DAPT uses the Lazada local corpus (unlabeled) by default. No synthetic data is generated.
 DEFAULT_LOCAL_QA_PATH = "LazadaQA-Taglish-7k.csv"
 DEFAULT_OUTPUT_FILE = "dapt_corpus_clean.txt"
 DEFAULT_USE_LOCAL_ONLY = True
 DEFAULT_SEED = 42
 
-logger = get_logger(__name__)
+logger = get_logger(__name__) 
 
 
 
@@ -125,7 +126,7 @@ def prepare_corpus():
     logger.info("Data preparation complete. Ready for training.")
 
 def main():
-    parser = argparse.ArgumentParser(description='Prepare DAPT corpus (cleaning + deduplication).')
+    parser = argparse.ArgumentParser(description='Prepare DAPT corpus (cleaning + deduplication). Uses Lazada local unlabeled data for DAPT (no synthetic data).')
     parser.add_argument('--input', '-i', default=DEFAULT_LOCAL_QA_PATH, help='Local QA CSV path')
     parser.add_argument('--output', '-o', default=DEFAULT_OUTPUT_FILE, help='Output text file for DAPT')
     parser.add_argument('--use-local-only', action='store_true', default=DEFAULT_USE_LOCAL_ONLY, help='Use only the local dataset (skip HF)')

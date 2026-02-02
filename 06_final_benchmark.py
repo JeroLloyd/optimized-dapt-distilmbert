@@ -13,6 +13,7 @@ from datasets import load_dataset, concatenate_datasets
 from nlp_thesis.utils import get_logger, set_seed
 
 # --- DEFAULT CONFIG ---
+# DEFAULT_DATASET_NAME is a LABELED dataset used for evaluation (default: FiReCS)
 DEFAULT_DATASET_NAME = "ccosme/FiReCS"
 DEFAULT_MODELS = {
     "Model_A_Base": "./models/model_A_finetuned",
@@ -185,7 +186,7 @@ def benchmark():
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument('--dataset', default=DEFAULT_DATASET_NAME)
+    parser.add_argument('--dataset', default=DEFAULT_DATASET_NAME, help='Labeled dataset name or local CSV to use for evaluation (default: ccosme/FiReCS)')
     parser.add_argument('--seed', type=int, default=DEFAULT_SEED)
     args = parser.parse_args()
 
