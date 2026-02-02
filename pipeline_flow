@@ -1,0 +1,12 @@
+digraph pipeline {
+	rankdir=LR
+	A [label="LazadaQA\n(Unlabeled)"]
+	B [label="DAPT\n(MLM)"]
+	C [label="FiReCS\n(Labeled)"]
+	D [label="Fine-tune\n(Supervised)"]
+	E [label="Optimize & Benchmark"]
+	A -> B
+	B -> D
+	C -> D
+	D -> E
+}
