@@ -1,5 +1,7 @@
 import os, sys
 import argparse
+
+from transformers import DistilBertTokenizer
 try:
     from transformers import AutoTokenizer, DataCollatorForLanguageModeling
 except Exception:
