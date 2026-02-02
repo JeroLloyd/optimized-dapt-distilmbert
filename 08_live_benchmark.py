@@ -5,10 +5,15 @@ import psutil
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
+import warnings
+
+# --- CONFIGURATION ---
+# Filter warnings to keep terminal clean
+warnings.filterwarnings("ignore", category=UserWarning, module="transformers")
+
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from optimum.onnxruntime import ORTModelForSequenceClassification
 
-# --- CONFIGURATION ---
 MODELS = {
     "Model A (Base)": "./models/model_A_finetuned",
     "Model B (DAPT)": "./models/model_B_finetuned",
@@ -79,7 +84,7 @@ def run_live_test(models, text):
     
     print(f"  Analyzing Input: \"{text}\"")
     print(f"{'-'*100}")
-    print(f"{'MODEL':<20} | {'PREDICTION':<10} | {'CONFIDENCE':<10} | {'LATENCY (ms)':<15} | {'SIZE (MB)':<10}")
+    print(f"{'MODEL':<20} | {'PRED':<10} | {'CONF':<8} | {'LATENCY':<10} | {'SIZE':<10}")
     print(f"{'-'*100}")
 
     for name, artifacts in models.items():
@@ -87,15 +92,12 @@ def run_live_test(models, text):
         tokenizer = artifacts["tokenizer"]
         size = artifacts["size_mb"]
         
-        # 1. Prepare Input
         inputs = tokenizer(text, return_tensors="pt", truncation=True, max_length=128)
         
-        # --- CRITICAL FIX: Remove token_type_ids for DistilBERT ---
+        # Safe Input Handling
         if "token_type_ids" in inputs:
             del inputs["token_type_ids"]
-        # ----------------------------------------------------------
         
-        # 2. Measure Inference Speed (Latency)
         start_time = time.perf_counter()
         with torch.no_grad():
             outputs = model(**inputs)
@@ -103,7 +105,6 @@ def run_live_test(models, text):
         
         latency_ms = (end_time - start_time) * 1000
         
-        # 3. Process Output
         logits = outputs.logits[0] if hasattr(outputs, "logits") else outputs[0]
         if isinstance(logits, np.ndarray): logits = torch.tensor(logits) 
             
@@ -112,10 +113,14 @@ def run_live_test(models, text):
         prediction = LABELS[winner_idx]
         confidence = probs[winner_idx] * 100
         
-        print(f"{name:<20} | {prediction:<10} | {confidence:>8.1f}%  | {latency_ms:>10.2f} ms   | {size:>8.1f} MB")
+        # Truncate model name for cleaner print
+        short_name = name.replace("Model ", "").replace(" (Base)", "").replace(" (DAPT)", "").replace(" (XLM-R)", "").replace(" (Optimized)", "")
+        
+        print(f"{name:<20} | {prediction:<10} | {confidence:>6.1f}% | {latency_ms:>8.2f} ms | {size:>8.1f} MB")
         
         results.append({
             "Model": name,
+            "ShortName": short_name, # Used for graphs to save space
             "Prediction": prediction,
             "Confidence": confidence,
             "Latency": latency_ms,
@@ -126,65 +131,63 @@ def run_live_test(models, text):
     return results
 
 def visualize(results, text):
-    # Setup Figure with smaller size
-    fig = plt.figure(figsize=(12, 7))
-    gs = fig.add_gridspec(2, 2)
+    # Set global font size for this plot
+    plt.rcParams.update({'font.size': 8}) 
     
-    # 1. Main Title (Reduced Font)
-    fig.suptitle(f"Thesis Live Benchmark\nInput: \"{text}\"", fontsize=12, fontweight='bold')
+    # Create Figure with high DPI for sharpness
+    fig = plt.figure(figsize=(10, 6), dpi=120) 
+    gs = fig.add_gridspec(2, 2, hspace=0.4, wspace=0.3)
+    
+    # Title
+    clean_text = (text[:40] + '..') if len(text) > 40 else text
+    fig.suptitle(f"Thesis Benchmark: \"{clean_text}\"", fontsize=10, fontweight='bold')
 
-    # --- Chart 1: Confidence (Bar) ---
+    # Data Prep
+    names = [r["ShortName"] for r in results]
+    conf = [r["Confidence"] for r in results]
+    preds = [r["Prediction"] for r in results]
+    lat = [r["Latency"] for r in results]
+    siz = [r["Size"] for r in results]
+    colors = [COLORS[LABELS.index(p)] for p in preds]
+
+    # --- 1. Confidence Bar Chart (Top) ---
     ax1 = fig.add_subplot(gs[0, :]) 
-    model_names = [r["Model"] for r in results]
-    confidences = [r["Confidence"] for r in results]
-    predictions = [r["Prediction"] for r in results]
-    colors = [COLORS[LABELS.index(p)] for p in predictions]
+    bars = ax1.bar(names, conf, color=colors, edgecolor='black', width=0.5)
+    ax1.set_ylim(0, 110)
+    ax1.set_ylabel("Confidence %")
+    ax1.grid(axis='y', linestyle='--', alpha=0.5)
     
-    bars = ax1.bar(model_names, confidences, color=colors, edgecolor='black', width=0.6)
-    ax1.set_title("Prediction Confidence (%) - Higher is Better", fontsize=10)
-    ax1.set_ylim(0, 115) # Extra space for labels
-    ax1.set_ylabel("Confidence Score", fontsize=9)
-    ax1.tick_params(axis='both', which='major', labelsize=8) # Smaller ticks
-    
-    # Add labels on bars (Smaller Font)
-    for bar, pred in zip(bars, predictions):
+    # Labels inside bars
+    for bar, pred, c in zip(bars, preds, conf):
         height = bar.get_height()
         ax1.text(bar.get_x() + bar.get_width()/2, height + 2, 
-                 f"{pred}\n{height:.1f}%", ha='center', va='bottom', 
-                 fontsize=9, fontweight='bold')
+                 f"{pred}\n{c:.1f}%", ha='center', va='bottom', fontsize=8, fontweight='bold')
 
-    # --- Chart 2: Latency (Horizontal Bar) ---
+    # --- 2. Latency (Bottom Left) ---
     ax2 = fig.add_subplot(gs[1, 0])
-    latencies = [r["Latency"] for r in results]
-    y_pos = np.arange(len(model_names))
-    
-    ax2.barh(y_pos, latencies, color='salmon', align='center', height=0.6)
+    y_pos = np.arange(len(names))
+    ax2.barh(y_pos, lat, color='salmon', align='center', height=0.5)
     ax2.set_yticks(y_pos)
-    ax2.set_yticklabels(model_names, fontsize=8)
-    ax2.tick_params(axis='x', labelsize=8)
+    ax2.set_yticklabels(names)
     ax2.invert_yaxis()
-    ax2.set_xlabel('Milliseconds (ms)', fontsize=9)
-    ax2.set_title('Inference Speed (Latency) - Lower is Faster', fontsize=10)
+    ax2.set_xlabel("Time (ms)")
+    ax2.set_title("Speed (Lower is Better)", fontsize=9)
+    
+    for i, v in enumerate(lat):
+        ax2.text(v + 1, i, f"{v:.1f} ms", va='center', fontsize=7)
 
-    # Label values inside bars
-    for i, v in enumerate(latencies):
-        ax2.text(v + 1, i, f"{v:.1f} ms", va='center', fontsize=8)
-
-    # --- Chart 3: Model Size (Bar) ---
+    # --- 3. Size (Bottom Right) ---
     ax3 = fig.add_subplot(gs[1, 1])
-    sizes = [r["Size"] for r in results]
+    bars3 = ax3.bar(names, siz, color='skyblue', width=0.5)
+    ax3.set_ylabel("MB")
+    ax3.set_title("Size (Lower is Better)", fontsize=9)
     
-    bars3 = ax3.bar(model_names, sizes, color='skyblue', width=0.6)
-    ax3.set_title('Resource Usage (Storage) - Lower is Better', fontsize=10)
-    ax3.set_ylabel('Megabytes (MB)', fontsize=9)
-    ax3.tick_params(axis='both', labelsize=8)
-    
-    # Label values
     for bar in bars3:
         height = bar.get_height()
         ax3.text(bar.get_x() + bar.get_width()/2, height + 5, 
-                 f"{height:.0f} MB", ha='center', va='bottom', fontsize=8)
-    
+                 f"{height:.0f} MB", ha='center', va='bottom', fontsize=7)
+
+    # Magic command to prevent overlap
     plt.tight_layout()
     plt.show()
 
@@ -197,11 +200,10 @@ if __name__ == "__main__":
 
     try:
         while True:
-            print("\n" + "-"*30)
-            user_text = input(" Enter Taglish Sentence (or 'q' to quit): ")
+            print("\n" + "-"*40)
+            user_text = input(" Enter Taglish Sentence (or 'q'): ")
             
             if user_text.lower() in ['q', 'quit', 'exit']:
-                print(" Exiting Benchmark Suite.")
                 break
                 
             if user_text.strip():
@@ -209,4 +211,4 @@ if __name__ == "__main__":
                 print(" Generating Visualization...")
                 visualize(data, user_text)
     except KeyboardInterrupt:
-        print("\nInterrupted by user. Exiting.")
+        print("\nExiting.")
